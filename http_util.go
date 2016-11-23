@@ -15,6 +15,13 @@ const (
 	ErrCodeUnknownError = 1600
 )
 
+type APIResponse struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Status  string `json:"status,omitempty"`
+	//Data    interface{} `json:"data,omitempty"`
+}
+
 func retHttpCodef(code, bodyCode int, w http.ResponseWriter, format string, a ...interface{}) {
 
 	w.WriteHeader(code)

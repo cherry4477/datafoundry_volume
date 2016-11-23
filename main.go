@@ -22,10 +22,19 @@ func (m *mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 
-	go openshift.Init(
+	openshift.Init(
 		os.Getenv("DATAFOUNDRY_HOST_ADDR"),
 		os.Getenv("DATAFOUNDRY_ADMIN_USER"),
 		os.Getenv("DATAFOUNDRY_ADMIN_PASS"),
+	)
+
+	InitGluster(
+		os.Getenv("GLUSTER_ENDPOINTS_NAME"),
+
+		os.Getenv("HEKETI_HOST_ADDR"),
+		os.Getenv("HEKETI_HOST_PORT"),
+		os.Getenv("HEKETI_USER"),
+		os.Getenv("HEKETI_KEY"),
 	)
 
 	// ...

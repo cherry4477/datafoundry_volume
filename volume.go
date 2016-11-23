@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 	"encoding/base32"
-	"os"
+	//"os"
 
 	"github.com/golang/glog"
 	"github.com/julienschmidt/httprouter"
@@ -33,19 +33,34 @@ var invalidVolumnSize = fmt.Errorf(
 	"volumn size must be integer multiple of 10G and in range [%d, %d].",
 	MinVolumnSize, MaxVolumnSize)
 
-func heketiClient() *heketi.Client {
-	return heketi.NewClient(
-		fmt.Sprintf("http://%s:%s",
-			os.Getenv("HEKETI_HOST_ADDR"),
-			os.Getenv("HEKETI_HOST_PORT"),
-		),
-		os.Getenv("HEKETI_USER"),
-		os.Getenv("HEKETI_KEY"),
-	)
+//==============================================================
+// 
+//==============================================================
+
+var (
+	glusterEndPointsName string
+
+	heketiHost string
+	heketiPort string
+	heketiUser string
+	heketiKey  string
+
+	heketiAddr string
+)
+
+func InitGluster(glusterEPs, hktHost, hktPort, hktUser, hktiKey string) {
+	glusterEndPointsName = glusterEPs
+
+	heketiHost = hktHost
+	heketiPort = hktPort
+	heketiUser = hktUser
+	heketiKey  = hktiKey
+
+	heketiAddr = fmt.Sprintf("http://%s:%s", heketiHost, heketiPort)
 }
 
-func glusterEndpointsName() string {
-	return os.Getenv("GLUSTER_ENDPOINTS_NAME")
+func heketiClient() *heketi.Client {
+	return heketi.NewClient(heketiAddr, heketiUser, heketiKey)
 }
 
 //==============================================================
@@ -235,7 +250,7 @@ func CreateVolume(w http.ResponseWriter, r *http.Request, params httprouter.Para
 			inputPV.Spec.Capacity = resourceList
 			inputPV.Spec.PersistentVolumeSource = kapi.PersistentVolumeSource{
 				Glusterfs: &kapi.GlusterfsVolumeSource{
-					EndpointsName: glusterEndpointsName(),
+					EndpointsName: glusterEndPointsName,
 					Path:          VolumeId2VolumeName(volume.Id),
 				},
 			}
