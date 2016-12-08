@@ -22,20 +22,6 @@ func (m *mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func startHttpServer() {
-	openshift.Init(
-		os.Getenv("DATAFOUNDRY_HOST_ADDR"),
-		os.Getenv("DATAFOUNDRY_ADMIN_USER"),
-		os.Getenv("DATAFOUNDRY_ADMIN_PASS"),
-	)
-
-	InitGluster(
-		os.Getenv("GLUSTER_ENDPOINTS_NAME"),
-
-		os.Getenv("HEKETI_HOST_ADDR"),
-		os.Getenv("HEKETI_HOST_PORT"),
-		os.Getenv("HEKETI_USER"),
-		os.Getenv("HEKETI_KEY"),
-	)
 
 	// ...
 
@@ -57,6 +43,22 @@ var debug = flag.Bool("debug", false, "is debug mode?")
 var cli = flag.Bool("cli", false, "used as cli command?")
 
 func main() {
+	openshift.Init(
+		os.Getenv("DATAFOUNDRY_HOST_ADDR"),
+		os.Getenv("DATAFOUNDRY_ADMIN_USER"),
+		os.Getenv("DATAFOUNDRY_ADMIN_PASS"),
+	)
+
+	InitGluster(
+		os.Getenv("GLUSTER_ENDPOINTS_NAME"),
+
+		os.Getenv("HEKETI_HOST_ADDR"),
+		os.Getenv("HEKETI_HOST_PORT"),
+		os.Getenv("HEKETI_USER"),
+		os.Getenv("HEKETI_KEY"),
+	)
+
+	
 	flag.Parse()
 
 	if *cli {
