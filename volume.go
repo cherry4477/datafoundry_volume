@@ -706,3 +706,16 @@ func deleteHeketiVolume (volumeId string) {
 		fmt.Printf("delete volume (%s) succeeded.\n", volumeId)
 	}
 }
+
+func waitDfAdminTokenCreated() {
+	for {
+		client := openshift.AdminClient()
+		if client != nil && client.BearerToken() != "" {
+			break
+		}
+
+		fmt.Println("wait df admin token created ...")
+
+		time.Sleep(3 * time.Second)
+	}
+}

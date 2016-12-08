@@ -37,7 +37,7 @@ import (
 
 var theOC *OpenshiftClient // with admin token
 
-func adminClient() *OpenshiftClient {
+func AdminClient() *OpenshiftClient {
 	return theOC
 }
 
@@ -73,6 +73,10 @@ type OpenshiftClient struct {
 	username    string
 	password    string
 	bearerToken string
+}
+
+func (oc OpenshiftClient) BearerToken() string {
+	return oc.bearerToken
 }
 
 func httpsAddrMaker(addr string) string {
@@ -250,7 +254,7 @@ type OpenshiftREST struct {
 
 func NewOpenshiftREST(client *OpenshiftClient) *OpenshiftREST {
 	if client == nil {
-		return &OpenshiftREST{oc: adminClient()}
+		return &OpenshiftREST{oc: AdminClient()}
 	}
 	return &OpenshiftREST{oc: client}
 }
