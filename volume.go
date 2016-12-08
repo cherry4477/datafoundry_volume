@@ -486,7 +486,7 @@ func executeCommand() {
 
 Commands:
 	stat
-	release-unused-pvc pvcName1 ...
+	release-unused-pv pvcName1 ...
 	release-unused-volume volumeId1 ...
 `)
 	}
@@ -680,7 +680,7 @@ func deletePV (pvName string) {
 
 	// ...
 	glusterfs := pv.Spec.PersistentVolumeSource.Glusterfs
-	if glusterfs != nil {
+	if glusterfs == nil {
 		fmt.Printf("   !!! pv (%s) is not using gluster volume.\n", pvName)
 		return
 	}
