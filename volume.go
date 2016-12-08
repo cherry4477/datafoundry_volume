@@ -9,6 +9,7 @@ import (
 	"time"
 	"encoding/base32"
 	//"os"
+	"flag"
 
 	"github.com/golang/glog"
 	"github.com/julienschmidt/httprouter"
@@ -189,7 +190,7 @@ func CreateVolume(w http.ResponseWriter, r *http.Request, params httprouter.Para
 	// create volumn
 	hkiClient := heketiClient()
 
-	_, _ = hkiClient.ClusterList() // test
+	//_, _ = hkiClient.ClusterList() // test
 	clusterlist, err := hkiClient.ClusterList()
 	if err != nil {
 		glog.Error(err)
@@ -465,4 +466,243 @@ func DeleteVolume(w http.ResponseWriter, r *http.Request, params httprouter.Para
 	// ...
 
 	RespOK(w, nil)
+}
+
+
+
+func QueryVolumes(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+}
+
+func ManageVolumes(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
+}
+
+//===============================================================
+// 
+//===============================================================
+
+func executeCommand() {
+	printHelp := func() {
+		fmt.Println(`
+
+Commands:
+	stat
+	release-unused-pvc pvcName1 ...
+	release-unused-volume volumeId1 ...
+`)
+	}
+
+	if flag.NArg() < 1 {
+		fmt.Printf("The number of arguments must be one. Now is %d.\n", flag.NArg())
+		printHelp()
+		return
+	}
+
+	switch flag.Arg(0) {
+	default:
+		printHelp()
+	case "stat":
+		statVolumes()
+	case "release-unused-pvc":
+		if flag.NArg() < 2 {
+			printHelp()
+		}
+		releaseUnusedPVC(flag.Args()[1:])
+	case "release-unused-volume":
+		if flag.NArg() < 2 {
+			printHelp()
+		}
+		releaseUnusedVolume(flag.Args()[1:])
+	}
+}
+
+func statVolumes() {
+
+	var hkiVolumes []string
+	{
+		hkiClient := heketiClient()
+		r, err := hkiClient.VolumeList()
+		if err != nil {
+			fmt.Printf("hkiClient.VolumeList error: %s.\n", err)
+			return
+		}
+
+		hkiVolumes = r.Volumes
+
+		fmt.Println("hkiVolumes =")
+		for _, volumeId := range hkiVolumes {
+			fmt.Println("\t ", volumeId)
+		}
+	}
+
+	// 
+
+	var pvList []kapi.PersistentVolume
+	{
+		list := struct{
+			Items []kapi.PersistentVolume `json:"items,omitempty"`
+		}{
+			[]kapi.PersistentVolume {},
+		}
+		osrGetPV := openshift.NewOpenshiftREST(nil)
+		osrGetPV.KGet("/persistentvolumes", &list)
+		if osrGetPV.Err != nil {
+			fmt.Printf("get pv list error: %s.\n", osrGetPV.Err)
+			return
+		}
+
+		pvList = list.Items
+
+		fmt.Println("pvList =")
+		for i := range pvList {
+			ppv := &pvList[i]
+			fmt.Println("\t ", ppv.Name)
+		}
+	}
+
+	// 
+
+	var pvcList []kapi.PersistentVolumeClaim
+	{
+		list := struct{
+			Items []kapi.PersistentVolumeClaim `json:"items,omitempty"`
+		}{
+			[]kapi.PersistentVolumeClaim {},
+		}
+		osrGetPVC := openshift.NewOpenshiftREST(nil)
+		osrGetPVC.KGet("/persistentvolumeclaims", &list)
+		if osrGetPVC.Err != nil {
+			fmt.Printf("get pvc list error: %s.\n", osrGetPVC.Err)
+			return
+		}
+
+		pvcList = list.Items
+		
+		fmt.Println("pvcList =")
+		for i := range pvcList {
+			ppvc := &pvcList[i]
+			fmt.Println("\t ", ppvc.Name)
+		}
+	}
+
+	// 
+
+	var pvToPVC = map[string]*kapi.PersistentVolumeClaim{}
+	for i := range pvcList {
+		ppvc := &pvcList[i]
+		pvToPVC[ppvc.Spec.VolumeName] = ppvc
+	}
+
+	var unusedPVs = []*kapi.PersistentVolume{}
+	for i := range pvList {
+		ppv := &pvList[i]
+		if pvToPVC[ppv.Name] == nil {
+			unusedPVs = append(unusedPVs, ppv)
+		}
+	}
+		
+	fmt.Println("=========================== unusedPVs =")
+	for _, ppv := range unusedPVs {
+		fmt.Println("\t ", ppv.Name)
+	}
+
+	// 
+
+	var volumeToPV = map[string]*kapi.PersistentVolume{}
+	for i := range pvList {
+		ppv := &pvList[i]
+		glusterfs := ppv.Spec.PersistentVolumeSource.Glusterfs
+		if glusterfs != nil {
+			volumeId := VolumeName2VolumeId(glusterfs.Path)
+			volumeToPV[volumeId] = ppv
+		}
+	}
+	
+	var unusedVolumes = []string{}
+	for _, volumeId := range hkiVolumes {
+		if volumeToPV[volumeId] == nil {
+			unusedVolumes = append(unusedVolumes, volumeId)
+		}
+	}
+		
+	fmt.Println("=========================== unusedVolumes =")
+	for _, volumeId := range unusedVolumes {
+		fmt.Println("\t ", volumeId)
+	}
+
+	// 
+}
+
+func releaseUnusedVolume(pvNames []string) {
+	for _, pv := range pvNames {
+		fmt.Println("================ to delete pv: ", pv)
+		deletePV(pv)
+	}
+}
+
+func releaseUnusedPVC(volumeIds []string) {
+	for _, volume := range volumeIds {
+		fmt.Println("================ to delete volume: ", volume)
+		deleteHeketiVolume(volume)
+	}
+}
+
+
+func deletePV (pvName string) {
+	pvName = strings.TrimSpace(pvName)
+	if len(pvName) == 0 {
+		fmt.Printf("   !!! pvName is blank.\n")
+		return
+	}
+
+	// ...
+	pv := &kapi.PersistentVolume{}
+	osrGetPV := openshift.NewOpenshiftREST(nil)
+	osrGetPV.KGet("/persistentvolumes/"+pvName, pv)
+	if osrGetPV.Err != nil {
+		fmt.Printf("   !!! get pv (%s) error: %s.\n", pvName, osrGetPV.Err)
+		return
+	}
+	
+	// ...
+	osrDeletePV := openshift.NewOpenshiftREST(nil)
+	osrDeletePV.KDelete("/persistentvolumes/"+pvName, nil)
+	if osrDeletePV.Err != nil {
+		fmt.Printf("   !!! delete pv (%s) error: %s.\n", pvName, osrDeletePV.Err)
+	} else {
+		fmt.Printf("delete pv (%s) succeeded.\n", pvName)
+	}
+
+	// ...
+	glusterfs := pv.Spec.PersistentVolumeSource.Glusterfs
+	if glusterfs != nil {
+		fmt.Printf("   !!! pv (%s) is not using gluster volume.\n", pvName)
+		return
+	}
+	volumeId := VolumeName2VolumeId(glusterfs.Path)
+
+	// ...
+
+	hkiClient := heketiClient()
+	err := hkiClient.VolumeDelete(volumeId)
+	if err != nil {
+		fmt.Printf("   !!! delete pv (%s) volume (%s) error: %s.\n", pvName, volumeId, err)
+	} else {
+		fmt.Printf("delete pv (%s) volume (%s) succeeded.\n", pvName, volumeId)
+	}
+}
+
+func deleteHeketiVolume (volumeId string) {
+	volumeId = strings.TrimSpace(volumeId)
+	if len(volumeId) == 0 {
+		fmt.Printf("   !!! volumeId is blank.\n")
+		return
+	}
+
+	hkiClient := heketiClient()
+	err := hkiClient.VolumeDelete(volumeId)
+	if err != nil {
+		fmt.Printf("   !!! delete volume (%s) error: %s.\n", volumeId, err)
+	} else {
+		fmt.Printf("delete volume (%s) succeeded.\n", volumeId)
+	}
 }
