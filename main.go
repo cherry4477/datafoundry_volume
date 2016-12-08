@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"flag"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/golang/glog"
@@ -20,8 +21,7 @@ func (m *mux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	RespError(w, fmt.Errorf("not found"), http.StatusNotFound)
 }
 
-func main() {
-
+func startHttpServer() {
 	openshift.Init(
 		os.Getenv("DATAFOUNDRY_HOST_ADDR"),
 		os.Getenv("DATAFOUNDRY_ADMIN_USER"),
@@ -44,9 +44,25 @@ func main() {
 	router.POST("/lapi/v1/namespaces/:namespace/volumes", CreateVolume)
 	router.DELETE("/lapi/v1/namespaces/:namespace/volumes/:name", DeleteVolume)
 
+	router.GET("/lapi/v1/volumes", QueryVolumes)
+	router.PUT("/lapi/v1/volumes", ManageVolumes)
+
 	router.NotFound = &mux{}
 	router.MethodNotAllowed = &mux{}
 	glog.Infoln("listening on port 9095")
 	glog.Fatalln(http.ListenAndServe(":9095", router))
+}
+
+var debug = flag.Bool("debug", false, "is debug mode?")
+var cli = flag.Bool("cli", false, "used as cli command?")
+
+func main() {
+	flag.Parse()
+
+	if *cli {
+		executeCommand()
+	} else {
+		startHttpServer()
+	}
 }
 
