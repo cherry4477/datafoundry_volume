@@ -501,12 +501,18 @@ Commands:
 	default:
 		printHelp()
 	case "stat":
+
+		waitDfAdminTokenCreated()
+
 		statVolumes()
-	case "release-unused-pvc":
+	case "release-unused-pv":
 		if flag.NArg() < 2 {
 			printHelp()
 		}
-		releaseUnusedPVC(flag.Args()[1:])
+
+		waitDfAdminTokenCreated()
+
+		releaseUnusedPV(flag.Args()[1:])
 	case "release-unused-volume":
 		if flag.NArg() < 2 {
 			printHelp()
@@ -632,14 +638,14 @@ func statVolumes() {
 	// 
 }
 
-func releaseUnusedVolume(pvNames []string) {
+func releaseUnusedPV(pvNames []string) {
 	for _, pv := range pvNames {
 		fmt.Println("================ to delete pv: ", pv)
 		deletePV(pv)
 	}
 }
 
-func releaseUnusedPVC(volumeIds []string) {
+func releaseUnusedVolume(volumeIds []string) {
 	for _, volume := range volumeIds {
 		fmt.Println("================ to delete volume: ", volume)
 		deleteHeketiVolume(volume)
@@ -711,6 +717,8 @@ func waitDfAdminTokenCreated() {
 	for {
 		client := openshift.AdminClient()
 		if client != nil && client.BearerToken() != "" {
+			fmt.Println("admin token created")
+
 			break
 		}
 
