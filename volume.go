@@ -598,17 +598,15 @@ func statVolumes() {
 		pvToPVC[ppvc.Spec.VolumeName] = ppvc
 	}
 
+	var usedPVs = []*kapi.PersistentVolume{}
 	var unusedPVs = []*kapi.PersistentVolume{}
 	for i := range pvList {
 		ppv := &pvList[i]
 		if pvToPVC[ppv.Name] == nil {
 			unusedPVs = append(unusedPVs, ppv)
+		} else {
+			usedPVs = append(usedPVs, ppv)
 		}
-	}
-		
-	fmt.Println("=========================== unusedPVs =")
-	for _, ppv := range unusedPVs {
-		fmt.Println("\t ", ppv.Name)
 	}
 
 	// 
@@ -623,11 +621,29 @@ func statVolumes() {
 		}
 	}
 	
+	var usedVolumes = []string{}
 	var unusedVolumes = []string{}
 	for _, volumeId := range hkiVolumes {
 		if volumeToPV[volumeId] == nil {
 			unusedVolumes = append(unusedVolumes, volumeId)
+		} else {
+			usedVolumes = append(usedVolumes, volumeId)
 		}
+	}
+		
+	fmt.Println("=========================== PVs in using =")
+	for _, ppv := range usedPVs {
+		fmt.Println("\t ", ppv.Name)
+	}
+		
+	fmt.Println("=========================== volumes in using =")
+	for _, volumeId := range usedVolumes {
+		fmt.Println("\t ", volumeId)
+	}
+		
+	fmt.Println("=========================== unusedPVs =")
+	for _, ppv := range unusedPVs {
+		fmt.Println("\t ", ppv.Name)
 	}
 		
 	fmt.Println("=========================== unusedVolumes =")
