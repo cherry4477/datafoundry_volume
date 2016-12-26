@@ -1,13 +1,13 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net/http"
 	"os"
-	"flag"
 
-	"github.com/julienschmidt/httprouter"
 	"github.com/golang/glog"
+	"github.com/julienschmidt/httprouter"
 
 	"github.com/asiainfoLDP/datafoundry_volume/openshift"
 )
@@ -58,7 +58,6 @@ func main() {
 		os.Getenv("HEKETI_KEY"),
 	)
 
-	
 	flag.Parse()
 
 	if *cli {
@@ -67,4 +66,3 @@ func main() {
 		startHttpServer()
 	}
 }
-

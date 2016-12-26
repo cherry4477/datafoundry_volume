@@ -12,7 +12,7 @@ import (
 )
 
 //======================================================
-// 
+//
 //======================================================
 
 const (
@@ -41,16 +41,16 @@ func MustBoolParam(params httprouter.Params, paramName string) (bool, error) {
 }
 
 func MustBoolParamInMap(m map[string]interface{}, paramName string) (bool, error) {
-	v, ok := m [paramName]
+	v, ok := m[paramName]
 	if ok {
 		b, ok := v.(bool)
 		if ok {
 			return b, nil
 		}
-		
+
 		return false, fmt.Errorf("param %s is not bool", paramName)
 	}
-	
+
 	return false, fmt.Errorf("param %s is not found", paramName)
 }
 

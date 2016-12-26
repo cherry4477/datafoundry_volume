@@ -10,13 +10,13 @@ import (
 )
 
 //================================================================
-// 
+//
 //================================================================
 
 func authDF(userToken string) (*userapi.User, error) {
 	if Debug {
 		return &userapi.User{
-			ObjectMeta: kapi.ObjectMeta {
+			ObjectMeta: kapi.ObjectMeta{
 				Name: "local",
 			},
 		}, nil

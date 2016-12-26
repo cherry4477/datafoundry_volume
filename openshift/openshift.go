@@ -74,7 +74,9 @@ type OpenshiftClient struct {
 	password    string
 	bearerToken string
 }
-
+func (oc OpenshiftClient) Username() string {
+	return oc.username
+}
 func (oc OpenshiftClient) BearerToken() string {
 	return oc.bearerToken
 }
