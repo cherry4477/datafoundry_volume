@@ -6,11 +6,8 @@ import (
 	"net/http"
 )
 
-
-
 const (
-	ErrCodeOK           = 1200
-
+	ErrCodeOK = 1200
 
 	ErrCodeUnknownError = 1600
 )

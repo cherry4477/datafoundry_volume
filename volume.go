@@ -2,12 +2,12 @@ package main
 
 import (
 	//"encoding/json"
+	"encoding/base32"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
-	"encoding/base32"
 	//"os"
 	"flag"
 
@@ -35,7 +35,7 @@ var invalidVolumnSize = fmt.Errorf(
 	MinVolumnSize, MaxVolumnSize)
 
 //==============================================================
-// 
+//
 //==============================================================
 
 var (
@@ -55,7 +55,7 @@ func InitGluster(glusterEPs, hktHost, hktPort, hktUser, hktiKey string) {
 	heketiHost = hktHost
 	heketiPort = hktPort
 	heketiUser = hktUser
-	heketiKey  = hktiKey
+	heketiKey = hktiKey
 
 	heketiAddr = fmt.Sprintf("http://%s:%s", heketiHost, heketiPort)
 }
@@ -78,13 +78,14 @@ func heketiClient() *heketi.Client {
 //}
 
 var base32Encoding = base32.NewEncoding("abcdefghijklmnopqrstuvwxyz234567")
+
 func NewThirteenLengthID() string {
 	t := time.Now().UnixNano()
 	bs := make([]byte, 8)
-	for i := uint(0); i < 8; i ++ {
+	for i := uint(0); i < 8; i++ {
 		bs[i] = byte((t >> i) & 0xff)
 	}
-	
+
 	dest := make([]byte, 16)
 	base32Encoding.Encode(dest, bs)
 	return string(dest[:13])
@@ -138,6 +139,11 @@ func CreateVolume(w http.ResponseWriter, r *http.Request, params httprouter.Para
 
 	if username, err = getDFUserame(r.Header.Get("Authorization")); err != nil {
 		RespError(w, err, http.StatusUnauthorized)
+		return
+	}
+	admin := openshift.AdminClient()
+	if username != admin.Username() {
+		RespError(w, errors.New("Only administrators have permission to create"), http.StatusUnauthorized)
 		return
 	}
 
@@ -361,6 +367,11 @@ func DeleteVolume(w http.ResponseWriter, r *http.Request, params httprouter.Para
 		RespError(w, err, http.StatusUnauthorized)
 		return
 	}
+	admin := openshift.AdminClient()
+	if username != admin.Username() {
+		RespError(w, errors.New("Only administrators have permission to delete"), http.StatusUnauthorized)
+		return
+	}
 
 	// ...
 
@@ -388,11 +399,10 @@ func DeleteVolume(w http.ResponseWriter, r *http.Request, params httprouter.Para
 
 	// get pv (will delete it at the end, for it stores the volumn id info)
 
-
 	// get pvc (to get the pv name)
 	outputPVC := &kapi.PersistentVolumeClaim{}
 	osrGetPVC := openshift.NewOpenshiftREST(openshift.NewOpenshiftClient(r.Header.Get("Authorization")))
-	osrGetPVC.KGet("/namespaces/" + namespace+"/persistentvolumeclaims/"+pvcname, &outputPVC)
+	osrGetPVC.KGet("/namespaces/"+namespace+"/persistentvolumeclaims/"+pvcname, &outputPVC)
 	if osrGetPVC.Err != nil {
 		glog.Infof("get pvc error: pvcname=%s, error: %s", pvcname, osrGetPVC.Err)
 		RespError(w, osrGetPVC.Err, http.StatusBadRequest)
@@ -468,8 +478,6 @@ func DeleteVolume(w http.ResponseWriter, r *http.Request, params httprouter.Para
 	RespOK(w, nil)
 }
 
-
-
 func QueryVolumes(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 }
 
@@ -477,7 +485,7 @@ func ManageVolumes(w http.ResponseWriter, r *http.Request, params httprouter.Par
 }
 
 //===============================================================
-// 
+//
 //===============================================================
 
 func executeCommand() {
@@ -540,14 +548,14 @@ func statVolumes() {
 		}
 	}
 
-	// 
+	//
 
 	var pvList []kapi.PersistentVolume
 	{
-		list := struct{
+		list := struct {
 			Items []kapi.PersistentVolume `json:"items,omitempty"`
 		}{
-			[]kapi.PersistentVolume {},
+			[]kapi.PersistentVolume{},
 		}
 		osrGetPV := openshift.NewOpenshiftREST(nil)
 		osrGetPV.KGet("/persistentvolumes", &list)
@@ -565,14 +573,14 @@ func statVolumes() {
 		}
 	}
 
-	// 
+	//
 
 	var pvcList []kapi.PersistentVolumeClaim
 	{
-		list := struct{
+		list := struct {
 			Items []kapi.PersistentVolumeClaim `json:"items,omitempty"`
 		}{
-			[]kapi.PersistentVolumeClaim {},
+			[]kapi.PersistentVolumeClaim{},
 		}
 		osrGetPVC := openshift.NewOpenshiftREST(nil)
 		osrGetPVC.KGet("/persistentvolumeclaims", &list)
@@ -582,7 +590,7 @@ func statVolumes() {
 		}
 
 		pvcList = list.Items
-		
+
 		fmt.Println("pvcList =")
 		for i := range pvcList {
 			ppvc := &pvcList[i]
@@ -590,7 +598,7 @@ func statVolumes() {
 		}
 	}
 
-	// 
+	//
 
 	var pvToPVC = map[string]*kapi.PersistentVolumeClaim{}
 	for i := range pvcList {
@@ -609,7 +617,7 @@ func statVolumes() {
 		}
 	}
 
-	// 
+	//
 
 	var volumeToPV = map[string]*kapi.PersistentVolume{}
 	for i := range pvList {
@@ -620,7 +628,7 @@ func statVolumes() {
 			volumeToPV[volumeId] = ppv
 		}
 	}
-	
+
 	var usedVolumes = []string{}
 	var unusedVolumes = []string{}
 	for _, volumeId := range hkiVolumes {
@@ -630,28 +638,28 @@ func statVolumes() {
 			usedVolumes = append(usedVolumes, volumeId)
 		}
 	}
-		
+
 	fmt.Println("=========================== PVs in using =")
 	for _, ppv := range usedPVs {
 		fmt.Println("\t ", ppv.Name)
 	}
-		
+
 	fmt.Println("=========================== volumes in using =")
 	for _, volumeId := range usedVolumes {
 		fmt.Println("\t ", volumeId)
 	}
-		
+
 	fmt.Println("=========================== unusedPVs =")
 	for _, ppv := range unusedPVs {
 		fmt.Println("\t ", ppv.Name)
 	}
-		
+
 	fmt.Println("=========================== unusedVolumes =")
 	for _, volumeId := range unusedVolumes {
 		fmt.Println("\t ", volumeId)
 	}
 
-	// 
+	//
 }
 
 func releaseUnusedPV(pvNames []string) {
@@ -668,8 +676,7 @@ func releaseUnusedVolume(volumeIds []string) {
 	}
 }
 
-
-func deletePV (pvName string) {
+func deletePV(pvName string) {
 	pvName = strings.TrimSpace(pvName)
 	if len(pvName) == 0 {
 		fmt.Printf("   !!! pvName is blank.\n")
@@ -684,7 +691,7 @@ func deletePV (pvName string) {
 		fmt.Printf("   !!! get pv (%s) error: %s.\n", pvName, osrGetPV.Err)
 		return
 	}
-	
+
 	// ...
 	osrDeletePV := openshift.NewOpenshiftREST(nil)
 	osrDeletePV.KDelete("/persistentvolumes/"+pvName, nil)
@@ -713,7 +720,7 @@ func deletePV (pvName string) {
 	}
 }
 
-func deleteHeketiVolume (volumeId string) {
+func deleteHeketiVolume(volumeId string) {
 	volumeId = strings.TrimSpace(volumeId)
 	if len(volumeId) == 0 {
 		fmt.Printf("   !!! volumeId is blank.\n")
