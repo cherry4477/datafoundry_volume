@@ -57,6 +57,9 @@ func NewOpenshiftClient(token string) *OpenshiftClient {
 		oapiUrl: theOC.oapiUrl,
 		kapiUrl: theOC.kapiUrl,
 
+		HttpClient: theOC.HttpClient,
+		WatchClient: theOC.WatchClient,
+
 		bearerToken: token,
 	}
 
@@ -73,6 +76,9 @@ type OpenshiftClient struct {
 	username    string
 	password    string
 	bearerToken string
+
+	HttpClient  *http.Client
+	WatchClient *http.Client
 }
 func (oc OpenshiftClient) Username() string {
 	return oc.username
@@ -95,6 +101,11 @@ func httpsAddrMaker(addr string) string {
 
 // for admin
 func newOpenshiftClient(host, username, password string) *OpenshiftClient {
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		//DisableKeepAlives: true,
+	}
+	
 	host = httpsAddrMaker(host)
 	oc := &OpenshiftClient{
 		host: host,
@@ -104,6 +115,15 @@ func newOpenshiftClient(host, username, password string) *OpenshiftClient {
 
 		username: username,
 		password: password,
+
+		HttpClient:  &http.Client{
+			Transport: transport,
+			Timeout:   GeneralRequestTimeout,
+		},
+		WatchClient: &http.Client{
+			Transport: transport,
+			Timeout:   0,
+		},
 	}
 
 	go oc.updateBearerToken()
